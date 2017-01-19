@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>图片二值化</title>
+    <style>
+        #group{
+            display: flex;
+            width: 700px;
+            justify-content: space-between;
+        }
+        .item{
+            width: 300px;
+            height: 300px;
+            border: 1px solid #000;
+        }
+        #canvas{
+            border: 1px dashed #000;
+        }
+    </style>
+</head>
+<body>
+    <input type="file" name="image" id="imgFile" onchange="loadImg()">
+    请输入0-255的阈值
+    <input type="text" name="Threshold " id="Threshold">
+    <input type="button" value="二值化" onclick="binary()">
+    <div id="group">
+        <div class="scream item">
+            <img alt="loading.." width="300" id="scream">
+        </div>
+        <canvas id="canvas" width="300" height="300" class="item"></canvas>
+    </div>
+
+<script>
+  
+    var c_w=300,c_h=300;
+
+    //图片二值化
+    function binary(){
+
+        var Threshold = getEleById('Threshold').value;
+        var img = getEleById('scream');
+        var canvas = getEleById('canvas');
+        var ctx = canvas.getContext('2d');
+        ctx.clearRect(0,0,c_w,c_h);
+        ctx.drawImage(img,0,0,img.width,img.height);
+
+        var imgd = ctx.getImageData(0,0,img.width,img.height);
+        var imgData = imgd.data;
+        var len = imgData.length - 1;
+        for (var i = 0; i <= len; i+=4) {
+            
+            var R = imgData[i];
+            var G = imgData[i+1];
+            var B = imgData[i+2];
+            var Alpha = imgData[i+3];
+
+            var avg = (R + G + B) / 3;
+
+            if(avg > Threshold){
+
+                imgData[i] = 255;
+                imgData[i+1] = 255;
+                imgData[i+2] = 255;
+            }else{
+
+                imgData[i] = 0;
+                imgData[i+1] = 0;
+                imgData[i+2] = 0;
+            }
+
+        }
+
+        imgd.data = imgData;
+        ctx.putImageData(imgd,0,0);
+    }
+    //加载图片
+    function loadImg(){
+
+        var img = getEleById('scream');
+
+        var file = getEleById('imgFile').files[0];
+
+        if (!/image\/\w+/.test(file.type)) {
+
+            alert("文件必须为图片！");
+
+            return false;
+
+        }
+
+        var reader = new FileReader();
+        reader.addEventListener('load',function(){
+
+            img.src = this.result;
+        })
+
+        if(file){
+
+            reader.readAsDataURL(file);
+
+            loadCanvas();
+        }
+
+        console.log(file);
+    }
+    //加载canvas
+    function loadCanvas(){
+
+        var canvas = getEleById('canvas');
+        var ctx = canvas.getContext('2d');
+        var img = getEleById('scream');
+        img.onload = function(){
+            ctx.clearRect(0,0,c_w,c_h);
+            ctx.drawImage(img,0,0,img.width,img.height);
+        }
+    }
+    function getEleById(id){
+
+        return document.getElementById(id);
+    }
+</script>
+</body>
+</html>
