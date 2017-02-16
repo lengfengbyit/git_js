@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>a*算法</title>
+    <style>
+        *{
+            margin: 0px;
+            padding: 0px;
+        }
+        #game{
+            width: 800px;
+            height: auto;
+            overflow: hidden;
+            text-align: center;
+            margin:0px auto;
+        }
+        #box{
+            height: auto;
+            border: 1px solid #000;
+            border-right: none;
+            border-bottom: none;
+            margin:20px auto;
+            display: block;
+            list-style: none;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+        #box li{
+            border:1px solid #000;
+            border-top: none;
+            border-left: none;
+            /*display: inline-block;*/
+            display: block;
+            float: left;
+            box-sizing: border-box;
+        }
+        #box .start{
+            background-color: green;
+        }
+        #box .end{
+            background-color: blue;
+        }
+        #box .obst{
+            background-color: red;
+        }
+        #gameStart{
+            width: 100px;
+            height: 35px;
+            line-height: 35px;
+            border: 1px solid #efefef;
+            background: blue;
+            color: white;
+            box-sizing: border-box;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    
+    <div id="game">
+        <ul id="box">
+            
+        </ul>
+        <input type="button" value="开始寻路" id="gameStart">
+    </div>
+
+    <script type="text/javascript">
+        
+        var game = {
+            box: document.getElementById('box'),
+            startNode: '', //开始节点
+            endNode: '', //结束节点
+            inputBtn: '', //开始按钮
+            size:20, // 地图格子的宽高
+            colsNum: 0, // 地图的列数，地图最好是这个正方形的。
+            liArr: [], // 存储地图所有节点
+            classMap: {
+                '0': '',
+                '1': 'start',
+                '2': 'end',
+                '3': 'obst' // 地图不同类型格子的className
+            },
+            map: [ //地图 0:正常，1:起点，2：终点，3：障碍
+              0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  
+              0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+              0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+              0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+              0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+              0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+              0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,
+              0,0,0,0,0,0,0,0,0,3,0,0,0,0,0,0,0,0,0,0,
+              0,0,0,0,0,0,0,0,0,3,0,0,0,0,0,0,0,0,0,0,
+              0,0,0,0,0,0,0,0,0,3,0,0,0,0,0,0,0,0,0,0,
+              3,0,3,3,3,3,3,3,3,3,3,3,3,3,3,3,0,3,3,0,
+              0,0,0,0,0,0,0,0,0,3,0,0,0,0,0,0,0,0,0,0,
+              3,3,3,0,3,3,3,3,0,3,0,0,0,0,3,3,3,3,3,0,
+              0,0,0,0,0,0,0,0,0,3,0,3,3,3,0,3,0,0,0,0,
+              0,0,3,3,0,3,3,0,3,0,0,3,2,3,0,3,0,0,3,3,
+              0,0,0,0,0,0,0,0,0,0,0,3,0,3,0,0,0,0,0,0,
+              0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+              0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+              0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+              0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+            ],
+            openArr: [], // 存储要走的地图节点
+            closeArr: [], // 存储所有走过的和不能走的地图节点
+            init: function(){
+
+                this.createMap();
+                this.bindEvent();
+
+                this.startNode =  document.getElementsByClassName('start')[0];
+                this.endNode   = document.getElementsByClassName('end')[0];
+                this.inputBtn  = document.getElementById('gameStart');
+            },
+            bindEvent: function(){
+
+                var _self = this;
+                document.getElementById('gameStart').onclick = function(){
+
+                    _self.gameStart();
+                };
+            },
+            createMap: function(){
+
+                var oLi;
+                this.map.forEach(function(val,index){
+
+                    oLi = document.createElement('li');
+                    oLi.style.width  = this.size + 'px';
+                    oLi.style.height = this.size + 'px';
+                    oLi.className    = this.classMap[val];
+
+                    if(val == 1){
+
+                        this.openArr.push(index);
+                    }else if(val == 3){
+
+                        this.closeArr.push(index);
+                    }
+
+                    this.box.appendChild(oLi);
+                    this.liArr.push(oLi);
+
+                },this);
+
+                //设置box的宽度
+                this.colsNum = Math.sqrt(this.map.length);
+                box.style.width = this.colsNum * this.size + 1 + 'px';
+            },
+            gameStart: function(){
+
+                // 获得openarr里的第一个节点坐标
+                var newNodeIndex = this.openArr.shift();
+                //获得当前节点的周围节点
+                var resNextNodes = this.getNextNodes(newNodeIndex);
+
+                //更新openArr
+                this.updateOpenArr(resNextNodes);
+                this.closeArr.push(newNodeIndex);
+                
+                if(this.liArr[newNodeIndex] == this.endNode){
+                    //打印路线
+                    this.showLine();
+                    return;
+                }
+
+                //递归调用
+                this.gameStart();
+            },
+            //更新OpenArr
+            updateOpenArr: function(resNextNodes){
+
+                //把获得到的节点放入到openarr中
+                if(resNextNodes.length > 0){
+
+                    var _self = this;
+
+                    this.openArr = this.openArr.concat(resNextNodes);
+
+                    //给openArr排序
+                    this.openArr.sort(function(aIndex,bIndex){
+
+                        return _self.liArr[aIndex].num - _self.liArr[bIndex].num;
+                    });
+                }
+            },
+            //获得当前节点的下一节点（即周围相邻的节点）
+            getNextNodes: function(currNodeIndex){
+
+                var _self = this;
+                var resNodeArr = [
+                    currNodeIndex - this.colsNum, // 上
+                    currNodeIndex + this.colsNum, // 下
+                ];
+
+                //如果当前左边在最左边，则左方没有节点
+                if(currNodeIndex % this.colsNum != 0){
+
+                    resNodeArr.push(currNodeIndex - 1); //左节点
+                    resNodeArr.push(currNodeIndex - this.colsNum - 1); //左上方
+                    resNodeArr.push(currNodeIndex + this.colsNum - 1); //左下方
+                } 
+                //如果当前节点在最右方，则右方没有节点
+                if((currNodeIndex + 1) % this.colsNum != 0){
+
+                    resNodeArr.push(currNodeIndex + 1); //右节点
+                    resNodeArr.push(currNodeIndex - this.colsNum + 1); // 右上方
+                    resNodeArr.push(currNodeIndex + this.colsNum + 1); //右下方
+                }
+
+                // 排除掉不合格的节点
+                resNodeArr = resNodeArr.filter(function(nodeIndex,i){
+
+                    if( this.closeArr.indexOf(nodeIndex) >= 0 ||
+                        this.openArr.indexOf(nodeIndex) >= 0 ||
+                        resNodeArr[i] < 0 || nodeIndex > this.map.length){
+
+                        return false;
+                    }
+
+                    return true;
+                },this);
+
+
+                // 给每个节点估价，计算到终点的距离
+                resNodeArr.forEach(function(nodeIndex){
+
+                    this.liArr[nodeIndex].num = this.f(this.liArr[nodeIndex]);
+                    this.liArr[nodeIndex].parentIndex = currNodeIndex;
+                },this);
+
+                return resNodeArr;
+            },
+            drawLine: function(nodeIndex){
+                
+                this.liArr[nodeIndex].style.backgroundColor = 'green';
+            },
+            // 使用递归倒推，从终点倒推出最短路线
+            getLine: function(nodeIndex,result){
+
+                result.unshift(nodeIndex);
+                //如果当前节点的父节点是起点，则结束递归
+                if(this.liArr[this.liArr[nodeIndex].parentIndex] == this.startNode){
+
+                    return result;
+                }
+
+                return this.getLine(this.liArr[nodeIndex].parentIndex,result);
+            },
+            // 打印最短路线 
+            showLine: function(){
+
+                var _self = this; debugger
+                var lastNodeIndex = this.closeArr.pop();
+                var result = this.getLine(lastNodeIndex,[]);
+
+                this.inputBtn.value = '寻路中...';
+
+                var i = 0;
+                var timer = setInterval(function(){
+
+                    _self.drawLine(result[i]);
+
+                    i++;
+
+                    if(i >= result.length){
+
+                        _self.inputBtn.value = '到达目的地';
+                        clearInterval(timer);
+                    }
+                },500);
+            },
+            //估价函数，计算开始点到结束点的距离
+            f: function(nli){
+
+                return this.g(nli) + this.h(nli);
+            },
+            //起始点到节点的距离
+            g: function(nli){
+
+                var x = this.startNode.offsetLeft - nli.offsetLeft;
+                var y = this.startNode.offsetTop - nli.offsetTop;
+
+                //利用勾股定理，计算两点间的距离
+                return Math.sqrt(x * x + y * y);
+            },
+            //节点到结束位置的距离
+            h: function(nli){
+
+                var x = this.endNode.offsetLeft - nli.offsetLeft;
+                var y = this.endNode.offsetTop - nli.offsetTop;
+
+                //利用勾股定理，计算两点间的距离
+                return Math.sqrt(x * x + y * y);
+            }
+        }
+
+        game.init();
+    </script>
+</body>
+</html>
